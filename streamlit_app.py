@@ -11,30 +11,23 @@ def run_quiz():
     if "score" not in st.session_state:
         st.session_state.score = 0
     if "current_questions" not in st.session_state:
-        st.session_state.current_questions = []
+        st.session_state.current_questions = get_new_questions()
     if "current_answers" not in st.session_state:
         st.session_state.current_answers = {}
-    if "questions_answered_this_round" not in st.session_state:
-        st.session_state.questions_answered_this_round = 0
+    if "show_results" not in st.session_state:
+        st.session_state.show_results = False
 
-    # Get new questions if we don't have any
-    if not st.session_state.current_questions:
-        remaining_questions = [q for q in quiz_data if q not in st.session_state.answered_questions]
-        if len(remaining_questions) < 3:
-            st.session_state.answered_questions = []
-            remaining_questions = quiz_data
-        st.session_state.current_questions = random.sample(remaining_questions, 3)
-        st.session_state.questions_answered_this_round = 0
+def get_new_questions():
+    remaining_questions = [q for q in quiz_data if q not in st.session_state.answered_questions]
+    if len(remaining_questions) < 3:
+        st.session_state.answered_questions = []
+        remaining_questions = quiz_data
+    return random.sample(remaining_questions, 3)
 
-    # Display questions
+def display_quiz():
     for idx, question in enumerate(st.session_state.current_questions):
         st.subheader(f"Question {idx + 1}:")
         
-        # Skip if already answered in this round
-        if question.get('answered_in_round', False):
-            st.info(f"Answered correctly! {question.get('feedback', '')}")
-            continue
-
         category = random.choice(['capital', 'border_countries', 'water_bodies', 'interesting_facts'])
         
         if category == 'capital':
@@ -58,36 +51,54 @@ def run_quiz():
             st.write(f"Which of the following is an interesting fact about {question['country']}?")
 
         random.shuffle(options)
+        answer = st.radio("Choose an answer:", options, key=f"q{idx}")
         
-        # Create columns for answer and submit button
-        col1, col2 = st.columns([3, 1])
-        
-        with col1:
-            answer = st.radio("Choose an answer:", options, key=f"q{idx}")
-        
-        with col2:
-            if st.button("Submit", key=f"submit{idx}"):
-                if answer == correct_answer:
-                    st.session_state.score += 1
-                    st.session_state.questions_answered_this_round += 1
-                    question['answered_in_round'] = True
-                    question['feedback'] = f"The correct answer is: {correct_answer}"
-                    st.session_state.answered_questions.append(question)
-                    st.success("Correct!")
-                else:
-                    st.error(f"Incorrect. The correct answer is: {correct_answer}")
-                st.rerun()
+        # Store the answer and correct answer for later checking
+        st.session_state.current_answers[idx] = {
+            'selected': answer,
+            'correct': correct_answer,
+            'question': question
+        }
 
-    # Show progress
-    st.write(f"Current score: {st.session_state.score}")
+def main():
+    run_quiz()
     
-    # Check if all questions in current round are answered
-    if st.session_state.questions_answered_this_round == 3:
+    if not st.session_state.show_results:
+        display_quiz()
+        
+        # Single submit button for all questions
+        if st.button("Submit Answers"):
+            score = 0
+            # Check answers and update score
+            for idx, answer_data in st.session_state.current_answers.items():
+                if answer_data['selected'] == answer_data['correct']:
+                    score += 1
+                    st.session_state.answered_questions.append(answer_data['question'])
+            
+            st.session_state.score += score
+            st.session_state.show_results = True
+            st.rerun()
+    
+    else:
+        # Display results
+        st.subheader("Results:")
+        for idx, answer_data in st.session_state.current_answers.items():
+            st.write(f"Question {idx + 1}:")
+            if answer_data['selected'] == answer_data['correct']:
+                st.success(f"Correct! Answer: {answer_data['correct']}")
+            else:
+                st.error(f"Incorrect. You selected: {answer_data['selected']}")
+                st.write(f"Correct answer: {answer_data['correct']}")
+        
+        st.write(f"Your score for this round: {sum(1 for a in st.session_state.current_answers.values() if a['selected'] == a['correct'])} out of 3")
+        st.write(f"Total score: {st.session_state.score}")
+        
+        # Button to start next round
         if st.button("Next Round"):
-            st.session_state.current_questions = []
+            st.session_state.current_questions = get_new_questions()
             st.session_state.current_answers = {}
-            st.session_state.questions_answered_this_round = 0
+            st.session_state.show_results = False
             st.rerun()
 
 if __name__ == "__main__":
-    run_quiz()
+    main()
