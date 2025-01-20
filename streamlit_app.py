@@ -5,11 +5,11 @@ from quiz_data import quiz_data  # Ensure you import the dataset correctly
 # Quiz Logic
 def run_quiz():
     st.title("Geography Quiz Time!")
-    
+
     # Initialize session state to store the answered questions and score
     if "answered_questions" not in st.session_state:
         st.session_state.answered_questions = []
-    
+
     if "score" not in st.session_state:
         st.session_state.score = 0
 
@@ -22,8 +22,8 @@ def run_quiz():
     
     selected_questions = random.sample(remaining_questions, 3)
 
-    score = 0
     answers = []  # To store user answers for review
+    question_data = []  # To store the question content for later
 
     for idx, question in enumerate(selected_questions):
         st.subheader(f"Question {idx + 1}:")
@@ -61,16 +61,20 @@ def run_quiz():
         # Radio buttons for choices
         answer = st.radio("Choose an answer:", options, key=f"q{idx}")
         
-        # Store answer for later
+        # Store answer and question data for later use
         answers.append((answer, correct_answer, question))
+        question_data.append(question)
 
     # After all three questions have been answered, submit the answers and display score
     if st.button("Submit Quiz"):
+        score = 0  # Reset score for this round
+
         for answer, correct_answer, question in answers:
             if answer == correct_answer:
                 score += 1
                 # Mark this question as answered correctly
-                st.session_state.answered_questions.append(question)
+                if question not in st.session_state.answered_questions:
+                    st.session_state.answered_questions.append(question)
         
         st.write(f"Your score for this set: {score} out of 3")
         
@@ -78,12 +82,11 @@ def run_quiz():
             st.success("You got all the answers correct!")
         else:
             st.warning(f"You got {score} correct. Try again.")
+        
+        # Option to continue to the next set of random questions
+        st.session_state.score += score  # Keep track of total score
 
         # Reset score for next round and proceed to next set of questions
-        st.session_state.score += score  # Keep track of total score
-        score = 0  # Reset the score for the next round
-
-        # Option to continue to the next set of random questions
         if st.button("Next Set of Questions"):
             run_quiz()  # Recursively run the quiz with new questions
 
