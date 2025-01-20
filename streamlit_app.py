@@ -1,6 +1,6 @@
 import streamlit as st
 import random
-from quiz_data import quiz_data  # Make sure to import the correct dataset
+from quiz_data import quiz_data  # Ensure you import the dataset correctly
 
 # Quiz Logic
 def run_quiz():
@@ -12,9 +12,7 @@ def run_quiz():
     
     if "score" not in st.session_state:
         st.session_state.score = 0
-    
-    total_questions = len(quiz_data)
-    
+
     # Randomly select 3 questions that have not been answered
     remaining_questions = [q for q in quiz_data if q not in st.session_state.answered_questions]
     
@@ -25,6 +23,8 @@ def run_quiz():
     selected_questions = random.sample(remaining_questions, 3)
 
     score = 0
+    answers = []  # To store user answers for review
+
     for idx, question in enumerate(selected_questions):
         st.subheader(f"Question {idx + 1}:")
         
@@ -61,24 +61,31 @@ def run_quiz():
         # Radio buttons for choices
         answer = st.radio("Choose an answer:", options, key=f"q{idx}")
         
-        # Check if the selected answer is correct
-        if answer == correct_answer:
-            score += 1
-            # Add question to answered questions list
-            st.session_state.answered_questions.append(question)
-    
-    # Display the result after the quiz is completed
+        # Store answer for later
+        answers.append((answer, correct_answer, question))
+
+    # After all three questions have been answered, submit the answers and display score
     if st.button("Submit Quiz"):
-        st.write(f"Your score: {score} out of 3")
+        for answer, correct_answer, question in answers:
+            if answer == correct_answer:
+                score += 1
+                # Mark this question as answered correctly
+                st.session_state.answered_questions.append(question)
+        
+        st.write(f"Your score for this set: {score} out of 3")
         
         if score == 3:
             st.success("You got all the answers correct!")
-            # Option to try again with new set of random questions
-            if st.button("Next Set of Questions"):
-                st.session_state.score += score  # Keep track of the total score
-                run_quiz()  # Recursively run the quiz with new questions
         else:
-            st.warning(f"You got {score} correct! Try again.")
-        
+            st.warning(f"You got {score} correct. Try again.")
+
+        # Reset score for next round and proceed to next set of questions
+        st.session_state.score += score  # Keep track of total score
+        score = 0  # Reset the score for the next round
+
+        # Option to continue to the next set of random questions
+        if st.button("Next Set of Questions"):
+            run_quiz()  # Recursively run the quiz with new questions
+
 if __name__ == "__main__":
     run_quiz()
