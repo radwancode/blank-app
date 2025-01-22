@@ -1,5 +1,4 @@
-# quiz_data.py
-quiz_data = [
+[
   {
     "country": "Afghanistan",
     "capital": "Kabul",
