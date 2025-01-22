@@ -1,104 +1,88 @@
 import streamlit as st
+import json
 import random
-from quiz_data import quiz_data
 
-def run_quiz():
-    st.title("Geography Quiz Time!")
+# Load the JSON data
+with open("data_quiz.py", "r") as file:
+    data = json.load(file)
 
-    # Initialize session state
-    if "answered_questions" not in st.session_state:
-        st.session_state.answered_questions = []
-    if "score" not in st.session_state:
-        st.session_state.score = 0
-    if "current_questions" not in st.session_state:
-        st.session_state.current_questions = get_new_questions()
-    if "current_answers" not in st.session_state:
-        st.session_state.current_answers = {}
-    if "show_results" not in st.session_state:
-        st.session_state.show_results = False
+# Initialize session state variables
+if "score" not in st.session_state:
+    st.session_state.score = {"correct": 0, "total": 0}
+if "current_questions" not in st.session_state:
+    st.session_state.current_questions = []
+if "user_answers" not in st.session_state:
+    st.session_state.user_answers = {}
+if "submitted" not in st.session_state:
+    st.session_state.submitted = False
 
-def get_new_questions():
-    remaining_questions = [q for q in quiz_data if q not in st.session_state.answered_questions]
-    if len(remaining_questions) < 3:
-        st.session_state.answered_questions = []
-        remaining_questions = quiz_data
-    return random.sample(remaining_questions, 3)
+# Function to generate random questions
+def generate_questions():
+    st.session_state.current_questions = random.sample(data, 3)
+    st.session_state.user_answers = {}
+    st.session_state.submitted = False
 
-def display_quiz():
-    for idx, question in enumerate(st.session_state.current_questions):
-        st.subheader(f"Question {idx + 1}:")
-        
-        category = random.choice(['capital', 'border_countries', 'water_bodies', 'interesting_facts'])
-        
-        if category == 'capital':
-            correct_answer = question['capital']
-            options = [question['capital']] + random.sample([q['capital'] for q in quiz_data if q != question], 3)
-            st.write(f"What is the capital of {question['country']}?")
-        elif category == 'border_countries':
-            correct_answer = ', '.join(question['border_countries'])
-            options = [', '.join(question['border_countries'])] + random.sample(
-                [', '.join(q['border_countries']) for q in quiz_data if q != question], 3)
-            st.write(f"Which countries border {question['country']}?")
-        elif category == 'water_bodies':
-            correct_answer = ', '.join(question['water_bodies'])
-            options = [', '.join(question['water_bodies'])] + random.sample(
-                [', '.join(q['water_bodies']) for q in quiz_data if q != question], 3)
-            st.write(f"What water bodies are found near {question['country']}?")
-        else:  # interesting_facts
-            correct_answer = random.choice(question['interesting_facts'])
-            options = [correct_answer] + random.sample(
-                [random.choice(q['interesting_facts']) for q in quiz_data if q != question], 3)
-            st.write(f"Which of the following is an interesting fact about {question['country']}?")
+# Function to reset the quiz
+def reset_quiz():
+    st.session_state.score = {"correct": 0, "total": 0}
+    generate_questions()
 
-        random.shuffle(options)
-        answer = st.radio("Choose an answer:", options, key=f"q{idx}")
-        
-        # Store the answer and correct answer for later checking
-        st.session_state.current_answers[idx] = {
-            'selected': answer,
-            'correct': correct_answer,
-            'question': question
-        }
+# Generate questions if none are loaded
+if not st.session_state.current_questions:
+    generate_questions()
 
-def main():
-    run_quiz()
+# Display the quiz title
+st.title("Country Quiz")
+
+# Display the current score
+st.write(f"Score: {st.session_state.score['correct']}/{st.session_state.score['total']} "
+         f"({(st.session_state.score['correct'] / st.session_state.score['total'] * 100 if st.session_state.score['total'] > 0 else 0):.2f}%)")
+
+# Display the questions and collect answers
+for i, country_data in enumerate(st.session_state.current_questions):
+    st.subheader(f"Question {i + 1}")
+    question_type = random.choice(["capital", "border_countries"])
     
-    if not st.session_state.show_results:
-        display_quiz()
-        
-        # Single submit button for all questions
-        if st.button("Submit Answers"):
-            score = 0
-            # Check answers and update score
-            for idx, answer_data in st.session_state.current_answers.items():
-                if answer_data['selected'] == answer_data['correct']:
-                    score += 1
-                    st.session_state.answered_questions.append(answer_data['question'])
-            
-            st.session_state.score += score
-            st.session_state.show_results = True
-            st.rerun()
-    
+    if question_type == "capital":
+        st.write(f"What is the capital of {country_data['country']}?")
+        st.session_state.user_answers[f"q{i}"] = st.text_input(f"Your answer for {country_data['country']}'s capital:", key=f"q{i}")
     else:
-        # Display results
-        st.subheader("Results:")
-        for idx, answer_data in st.session_state.current_answers.items():
-            st.write(f"Question {idx + 1}:")
-            if answer_data['selected'] == answer_data['correct']:
-                st.success(f"Correct! Answer: {answer_data['correct']}")
-            else:
-                st.error(f"Incorrect. You selected: {answer_data['selected']}")
-                st.write(f"Correct answer: {answer_data['correct']}")
-        
-        st.write(f"Your score for this round: {sum(1 for a in st.session_state.current_answers.values() if a['selected'] == a['correct'])} out of 3")
-        st.write(f"Total score: {st.session_state.score}")
-        
-        # Button to start next round
-        if st.button("Next Round"):
-            st.session_state.current_questions = get_new_questions()
-            st.session_state.current_answers = {}
-            st.session_state.show_results = False
-            st.rerun()
+        st.write(f"Name one of the border countries of {country_data['country']}:")
+        st.session_state.user_answers[f"q{i}"] = st.text_input(f"Your answer for {country_data['country']}'s border country:", key=f"q{i}")
 
-if __name__ == "__main__":
-    main()
+# Submit button
+if st.button("Submit"):
+    st.session_state.submitted = True
+    all_correct = True
+
+    for i, country_data in enumerate(st.session_state.current_questions):
+        question_type = "capital" if "capital" in st.session_state.user_answers[f"q{i}"].lower() else "border_countries"
+        user_answer = st.session_state.user_answers[f"q{i}"].strip().lower()
+
+        if question_type == "capital":
+            correct_answer = country_data["capital"].lower()
+        else:
+            correct_answer = [bc.lower() for bc in country_data["border_countries"]]
+
+        if (question_type == "capital" and user_answer == correct_answer) or \
+           (question_type == "border_countries" and user_answer in correct_answer):
+            st.success(f"Question {i + 1} is correct!")
+        else:
+            st.error(f"Question {i + 1} is incorrect. The correct answer was: {correct_answer if question_type == 'capital' else ', '.join(correct_answer)}")
+            all_correct = False
+
+    if all_correct:
+        st.session_state.score["correct"] += 3
+        st.session_state.score["total"] += 3
+        st.balloons()
+        st.write("All answers are correct! Moving to the next set of questions.")
+        generate_questions()
+    else:
+        st.session_state.score["total"] += 3
+
+# Reset button
+if st.button("Reset Quiz"):
+    reset_quiz()
+
+# Display the current questions for debugging (optional)
+# st.write("Current Questions:", st.session_state.current_questions)
