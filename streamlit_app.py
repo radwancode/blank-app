@@ -3,7 +3,7 @@ import json
 import random
 
 # Load the JSON data
-with open("quiz_data.py", "r") as file:
+with open("quiz_data.json", "r") as file:
     data = json.load(file)
 
 # Initialize session state variables
